@@ -20,11 +20,7 @@ AI知识地图技能提供两种存储后端的个人知识管理系统：
 - 重视云端访问和移动端支持  
 - 偏好开箱即用的文档体验
 
-**依赖技能**: `feishu-docs-v2`
-
-**用户要求**:
-- 必须提供一个可访问的飞书知识库（Wiki Space）链接或 token
-- 确保应用有 `wiki:wiki`, `docx:document`, `drive:file` 权限
+**依赖技能**: `feishu-docs-v2` (增强版，支持知识库操作)
 
 ### Obsidian Backend  
 **适用场景**:
@@ -41,50 +37,46 @@ AI知识地图技能提供两种存储后端的个人知识管理系统：
 - **关联构建**: 双向链接建立概念间关系
 - **外部导入**: 支持手动添加外部文章到知识库
 
-## Framework Structure
-
-### Obsidian 本地框架
-```
-AI-Knowledge-Map/
-├── concepts/           # 每个概念一个文件
-│   ├── Agent.md
-│   ├── LLM.md
-│   └── RAG.md
-├── articles/           # 每篇文章的笔记
-│   └── 2026-02-24-article-summary.md
-└── index.md            # 主索引页
-```
-
-### Feishu 知识库框架
-```
-AI 知识地图 (Wiki Space)
-├── 核心概念 (Folder)
-│   ├── Agent 系列
-│   │   ├── Deep Agent
-│   │   ├── Autonomous Agent
-│   │   └── ...
-│   ├── LLM 基础
-│   └── ...
-├── 文章笔记 (Folder)
-│   ├── 2026-02-24 Deep Agents Overview
-│   └── ...
-└── 索引页面 (Index Doc)
-```
-
 ## Getting Started
 1. 选择存储后端（Feishu或Obsidian）
-2. **Feishu用户**: 提供可访问的知识库链接/token
-3. 配置RSS源列表
-4. 设置知识库基础结构
-5. 开始每日知识捕获流程
+2. 配置RSS源列表
+3. 设置知识库基础结构
+4. 开始每日知识捕获流程
 
 ## Configuration
 根据选择的后端，需要相应的权限和配置：
-- **Feishu**: 需要`docx:document`、`wiki:wiki`等相关API权限，用户提供目标知识库
+- **Feishu**: 需要`docx:document`等相关API权限，通过`feishu-docs-v2`技能处理所有底层文档操作
 - **Obsidian**: 需要本地文件写入权限和可选的Git仓库
 
-## Assets
-详细框架模板和初始化脚本位于 `assets/` 目录：
-- `obsidian-framework.md`: Obsidian 本地文件结构和模板
-- `feishu-framework.md`: Feishu 知识库结构和文档模板  
-- `init-example.sh`: 初始化脚本示例
+## Architecture
+- **业务逻辑层**: `ai-knowledge-map` 专注于知识地图的结构定义、模板管理和业务流程
+- **基础能力层**: `feishu-docs-v2` 处理所有底层的飞书API调用、Markdown转换、权限管理等细节
+
+## Usage Examples
+
+### 初始化大模型知识地图
+```bash
+# 使用 feishu-docs-v2 的 wiki-create-doc 命令
+node scripts/wiki-enhanced.js create-doc \
+  --space-id 7610312220454423754 \
+  --title "核心概念" \
+  --structure "knowledge-map-root"
+```
+
+### 创建子概念文档
+```bash
+# 使用预定义的模板
+node scripts/wiki-enhanced.js create-doc \
+  --space-id 7610312220454423754 \
+  --parent-node AiK2wHSHJi4E15kvZx3clycEn7g \
+  --title "LLM 基础" \
+  --template "concept-template"
+```
+
+### 批量创建知识地图结构
+```bash
+# 使用结构配置文件
+node scripts/wiki-enhanced.js create-structure \
+  --space-id 7610312220454423754 \
+  --config ./ai-knowledge-map/config/ai-structure.json
+```
