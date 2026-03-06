@@ -52,40 +52,62 @@ AI知识地图技能提供两种存储后端的个人知识管理系统：
 - **业务逻辑层**: `ai-knowledge-map` 专注于知识地图的结构定义、模板管理和业务流程
 - **基础能力层**: `feishu-docs-v2` 处理所有底层的飞书API调用、Markdown转换、权限管理等细节
 
-## ✨ 验证的最佳实践流程 (2026-03-05)
+## ✨ 最佳实践：完整工作流 (2026-03-06)
 
-### 推荐的完整工作流：
-1. **使用 `feishu-doc-creator-skill` 创建云文档**
-   - 支持完整的 Markdown 到飞书块转换
-   - 自动处理权限（添加协作者）
-   - 内容格式完美保留
+### 推荐的三阶段工作流：
+#### 第一阶段：本地 Markdown 维护
+- 在 `articles-notes/` 目录维护原始 Markdown 文件
+- 文件命名格式：`YYYY-MM-DD-主题.md`
+- 便于版本控制、备份和离线查看
+- 作为飞书文档的唯一源文件
 
-2. **使用官方 API 移动到知识库**
-   ```bash
-   # 移动文档到知识库
-   curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/{space_id}/nodes/move_docs_to_wiki" \
-     -H "Authorization: Bearer {access_token}" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "obj_type": "docx",
-       "obj_token": "{document_id}",
-       "parent_node_token": "{target_parent_token}"
-     }'
-   ```
+#### 第二阶段：使用 feishu-doc-orchestrator 创建文档
+```bash
+# 最快创建方式 - 单命令完成全部步骤
+python skills/feishu-doc-orchestrator/scripts/orchestrator.py \
+  articles-notes/2026-03-06-edict-analysis.md \
+  "2026-03-06 Edict 项目深度解析：三省六部制 AI 协作架构"
+```
 
-3. **使用官方 API 更新标题（如果需要）**
-   ```bash
-   # 更新 Wiki 节点标题
-   curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/{space_id}/nodes/{node_token}/update_title" \
-     -H "Authorization: Bearer {access_token}" \
-     -H "Content-Type: application/json" \
-     -d '{"title": "新标题"}'
-   ```
+这个命令会自动完成：
+- ✅ Markdown 解析为飞书块格式
+- ✅ 创建飞书云文档（带正确标题）
+- ✅ 自动处理权限（添加协作者+转移所有权）
+- ✅ 批量添加所有内容块
+- ✅ 验证文档可访问性
+- ✅ 记录创建日志
+
+#### 第三阶段：移动到知识库指定节点
+```bash
+# 识别目标节点并移动
+# 根据文章内容自动判断目标位置：
+# - 技术文档 → "关键技术" 节点
+# - 学习笔记 → "文章笔记" 节点  
+# - 概念定义 → "核心概念" 节点
+
+curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/{space_id}/nodes/move_docs_to_wiki" \
+  -H "Authorization: Bearer {access_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "obj_type": "docx",
+    "obj_token": "{document_id}",
+    "parent_node_token": "{target_parent_token}"
+  }'
+```
+
+### 📋 节点分类规则
+| 文章类型 | 目标节点 | 判断标准 |
+|---------|---------|---------|
+| **技术实现文档** | 核心概念/关键技术 | 包含代码、API、技术架构 |
+| **学习笔记/总结** | 文章笔记 | 个人学习、踩坑经验、最佳实践 |
+| **概念定义** | 核心概念/[领域] | 术语解释、概念说明、理论框架 |
+| **项目文档** | 核心概念/项目 | 项目规划、需求文档、设计文档 |
 
 ### ⚠️ 重要提示
 - **避免直接使用 `feishu-wiki` 技能**：经测试可能存在兼容性问题
 - **优先使用官方 REST API**：更稳定可靠，错误信息明确
-- **标题格式注意**：确保使用纯文本而非 JSON 格式
+- **标题必须包含日期前缀**：`YYYY-MM-DD 主题` 格式
+- **本地源文件是权威**：所有修改应在本地 Markdown 中进行，然后重新生成
 
 ## 🤖 自动触发机制 (2026-03-06)
 
@@ -102,12 +124,11 @@ AI知识地图技能提供两种存储后端的个人知识管理系统：
 ### 自动化流程
 ```
 用户请求 → 检测关键词 → 调用 ai-knowledge-map → 
-1. 在本地 articles-notes/ 目录创建 Markdown 文章
-2. 使用 feishu-md-parser 解析为飞书块格式
-3. 使用 feishu_doc.create 创建飞书云文档  
-4. 使用官方 API 分批添加内容（每批≤50块）
-5. 使用官方 API 移动到知识库"文章笔记"目录
-6. 返回文档链接和摘要
+1. 在 articles-notes/ 目录创建 YYYY-MM-DD-主题.md
+2. 使用 orchestrator.py 一键创建飞书文档
+3. 根据内容分析确定目标知识库节点
+4. 使用官方 API 移动到正确位置
+5. 返回文档链接和摘要
 ```
 
 ### 本地文章管理
@@ -147,12 +168,17 @@ node scripts/wiki-enhanced.js create-structure \
 
 ### 手动创建并移动文档（推荐方式）
 ```bash
-# 1. 先创建完整内容的云文档
-python feishu-doc-creator-skill/feishu-doc-orchestrator/scripts/orchestrator.py content.md "2026-03-05 文档标题"
+# 1. 先在本地创建 Markdown 源文件
+echo "# 2026-03-06 测试文章\n内容..." > articles-notes/2026-03-06-test.md
 
-# 2. 使用 curl 移动到知识库
+# 2. 使用 orchestrator 一键创建
+python skills/feishu-doc-orchestrator/scripts/orchestrator.py \
+  articles-notes/2026-03-06-test.md \
+  "2026-03-06 测试文章"
+
+# 3. 移动到知识库（根据内容判断目标节点）
 curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/7610312220454423754/nodes/move_docs_to_wiki" \
   -H "Authorization: Bearer $(get_access_token)" \
   -H "Content-Type: application/json" \
-  -d '{"obj_type":"docx","obj_token":"DOC_ID","parent_node_token":"PARENT_TOKEN"}'
+  -d '{"obj_type":"docx","obj_token":"DOC_ID","parent_node_token":"ARTICLES_NODE_TOKEN"}'
 ```
