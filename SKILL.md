@@ -52,6 +52,41 @@ AI知识地图技能提供两种存储后端的个人知识管理系统：
 - **业务逻辑层**: `ai-knowledge-map` 专注于知识地图的结构定义、模板管理和业务流程
 - **基础能力层**: `feishu-docs-v2` 处理所有底层的飞书API调用、Markdown转换、权限管理等细节
 
+## ✨ 验证的最佳实践流程 (2026-03-05)
+
+### 推荐的完整工作流：
+1. **使用 `feishu-doc-creator-skill` 创建云文档**
+   - 支持完整的 Markdown 到飞书块转换
+   - 自动处理权限（添加协作者）
+   - 内容格式完美保留
+
+2. **使用官方 API 移动到知识库**
+   ```bash
+   # 移动文档到知识库
+   curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/{space_id}/nodes/move_docs_to_wiki" \
+     -H "Authorization: Bearer {access_token}" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "obj_type": "docx",
+       "obj_token": "{document_id}",
+       "parent_node_token": "{target_parent_token}"
+     }'
+   ```
+
+3. **使用官方 API 更新标题（如果需要）**
+   ```bash
+   # 更新 Wiki 节点标题
+   curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/{space_id}/nodes/{node_token}/update_title" \
+     -H "Authorization: Bearer {access_token}" \
+     -H "Content-Type: application/json" \
+     -d '{"title": "新标题"}'
+   ```
+
+### ⚠️ 重要提示
+- **避免直接使用 `feishu-wiki` 技能**：经测试可能存在兼容性问题
+- **优先使用官方 REST API**：更稳定可靠，错误信息明确
+- **标题格式注意**：确保使用纯文本而非 JSON 格式
+
 ## Usage Examples
 
 ### 初始化大模型知识地图
@@ -79,4 +114,16 @@ node scripts/wiki-enhanced.js create-doc \
 node scripts/wiki-enhanced.js create-structure \
   --space-id 7610312220454423754 \
   --config ./ai-knowledge-map/config/ai-structure.json
+```
+
+### 手动创建并移动文档（推荐方式）
+```bash
+# 1. 先创建完整内容的云文档
+python feishu-doc-creator-skill/feishu-doc-orchestrator/scripts/orchestrator.py content.md "2026-03-05 文档标题"
+
+# 2. 使用 curl 移动到知识库
+curl -X POST "https://open.feishu.cn/open-apis/wiki/v2/spaces/7610312220454423754/nodes/move_docs_to_wiki" \
+  -H "Authorization: Bearer $(get_access_token)" \
+  -H "Content-Type: application/json" \
+  -d '{"obj_type":"docx","obj_token":"DOC_ID","parent_node_token":"PARENT_TOKEN"}'
 ```
